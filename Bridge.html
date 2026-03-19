@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bridge</title>
+</head>
+<body>
+  <script>
+    // Parse hash payload (from parent iframe)
+    function getHashPayload() {
+      try {
+        return JSON.parse(decodeURIComponent(window.location.hash.substring(1)));
+      } catch (e) {
+        console.error("Invalid hash payload");
+        return null;
+      }
+    }
+
+    // Parse query params (from Godot)
+    function getQueryParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        classId: params.get("classId"),
+        score: params.get("score")
+      };
+    }
+
+    const hashPayload = getHashPayload();
+    const query = getQueryParams();
+
+    const parentOrigin = hashPayload?.bridge?.parentOrigin;
+    const nonce = hashPayload?.bridge?.nonce;
+
+    function sendCommand() {
+      if (!parentOrigin || !nonce) {
+        console.error("Missing bridge info");
+        return;
+      }
+
+      const message = {
+        action: "device.command",
+        nonce: nonce,
+        payload: {
+          command: "dance.start",
+          params: {
+            durationSeconds: 30,
+            intensityPct: 50
+          }
+        }
+      };
+
+      window.parent.postMessage(message, parentOrigin);
+      console.log("Sent command:", message);
+    }
+
+    // Auto-trigger when loaded (after ping from Godot)
+    window.onload = () => {
+      if (query.classId) {
+        sendCommand();
+      }
+    };
+
+    // Optional: listen for response
+    window.addEventListener("message", (event) => {
+      if (event.origin !== parentOrigin) return;
+      console.log("Response:", event.data);
+    });
+  </script>
+</body>
+</html>
